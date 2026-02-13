@@ -12,6 +12,7 @@ primary_region = 'iad'
 
 [env]
   PORT = '8080'
+  FOURSQUARE_API_KEY=K2OZJS5BNP4VBNWKF5LKFUSCE321JMQU5RHLAWQZBHZQ2O1
 
 [http_service]
   internal_port = 8080
