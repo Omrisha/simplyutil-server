@@ -134,7 +134,7 @@ func TestGetRatesValidation(t *testing.T) {
 
 // Test model validation
 func TestLandmarkModel(t *testing.T) {
-	landmark := Landmark{
+	landmark := LandmarkEntity{
 		Name:      "Test Landmark",
 		Address:   "123 Test St",
 		Latitude:  51.5074,
@@ -149,7 +149,7 @@ func TestLandmarkModel(t *testing.T) {
 	}
 
 	// Test JSON unmarshaling
-	var unmarshaled Landmark
+	var unmarshaled LandmarkEntity
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal landmark: %v", err)
@@ -165,7 +165,7 @@ func TestLandmarkModel(t *testing.T) {
 
 // Test City model
 func TestCityModel(t *testing.T) {
-	city := City{
+	city := CityEntity{
 		ID:              1,
 		Name:            "London",
 		ThreeLetterCode: "GBR",
@@ -178,7 +178,7 @@ func TestCityModel(t *testing.T) {
 		t.Fatalf("Failed to marshal city: %v", err)
 	}
 
-	var unmarshaled City
+	var unmarshaled CityEntity
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal city: %v", err)

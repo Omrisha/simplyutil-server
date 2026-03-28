@@ -153,16 +153,16 @@ func GetRates(c *gin.Context) {
 
 // Result types for concurrent fetching
 type landmarksResult struct {
-	landmarks []Landmark
+	landmarks []LandmarkEntity
 	err       error
 }
 
 type weatherResult struct {
-	weather WeatherData
+	weather WeatherEntity
 	err     error
 }
 
 type ratesResult struct {
-	rates RatesData
+	rates RatesEntity
 	err   error
 }
