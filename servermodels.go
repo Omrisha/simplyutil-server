@@ -2,8 +2,8 @@ package main
 
 import "time"
 
-// City represents a city/country with currency info
-type City struct {
+// CityEntity represents a city/country with currency info
+type CityEntity struct {
 	ID              int    `json:"id"`
 	Name            string `json:"name"`
 	ThreeLetterCode string `json:"threeLetterCode"`
@@ -11,8 +11,8 @@ type City struct {
 	Country         string `json:"country"`
 }
 
-// Landmark represents a place of interest
-type Landmark struct {
+// LandmarkEntity represents a place of interest
+type LandmarkEntity struct {
 	Name      string  `json:"name"`
 	Address   string  `json:"address"`
 	Latitude  float64 `json:"latitude"`
@@ -20,22 +20,22 @@ type Landmark struct {
 	Rating    float64 `json:"rating"`
 }
 
-// WeatherData represents weather forecast
-type WeatherData struct {
-	Latitude  float64           `json:"latitude"`
-	Longitude float64           `json:"longitude"`
-	Hourly    []HourlyForecast  `json:"hourly"`
+// WeatherEntity represents weather forecast
+type WeatherEntity struct {
+	Latitude  float64                 `json:"latitude"`
+	Longitude float64                 `json:"longitude"`
+	Hourly    []HourlyForecastEntity  `json:"hourly"`
 }
 
-type HourlyForecast struct {
+type HourlyForecastEntity struct {
 	Time             string  `json:"time"`
 	Temperature      float64 `json:"temperature"`
 	WindSpeed        float64 `json:"windSpeed"`
 	RelativeHumidity int     `json:"relativeHumidity"`
 }
 
-// RatesData represents exchange rates
-type RatesData struct {
+// RatesEntity represents exchange rates
+type RatesEntity struct {
 	BaseCurrency string             `json:"baseCurrency"`
 	Rates        map[string]float64 `json:"rates"`
 	Timestamp    time.Time          `json:"timestamp"`
@@ -96,8 +96,8 @@ type ExchangeRateResponse struct {
 	TimeLastUpdateUnix  int64              `json:"time_last_update_unix"`
 }
 
-// RestCountry for REST Countries API
-type RestCountry struct {
+// RestCountryResponse for REST Countries API
+type RestCountryResponse struct {
 	Name struct {
 		Common   string `json:"common"`
 		Official string `json:"official"`
@@ -110,8 +110,8 @@ type RestCountry struct {
 	} `json:"currencies"`
 }
 
-// NominatimResult for geocoding
-type NominatimResult struct {
+// NominatimResponse for geocoding
+type NominatimResponse struct {
 	Lat float64 `json:"lat,string"`
 	Lon float64 `json:"lon,string"`
 }

@@ -57,7 +57,7 @@ func TestParseV2APIKey(t *testing.T) {
 // Test geocodeCity with mock server
 func TestGeocodeCity(t *testing.T) {
 	// Create mock server
-	mockResponse := []NominatimResult{
+	mockResponse := []NominatimResponse{
 		{Lat: 51.5074, Lon: -0.1278},
 	}
 
@@ -203,7 +203,7 @@ func TestRestCountryParsing(t *testing.T) {
 		}
 	}`
 
-	var country RestCountry
+	var country RestCountryResponse
 	err := json.Unmarshal([]byte(jsonData), &country)
 	if err != nil {
 		t.Fatalf("Failed to parse JSON: %v", err)
@@ -227,7 +227,7 @@ func TestNominatimResultParsing(t *testing.T) {
 		"lon": "-0.1278"
 	}`
 
-	var result NominatimResult
+	var result NominatimResponse
 	err := json.Unmarshal([]byte(jsonData), &result)
 	if err != nil {
 		t.Fatalf("Failed to parse JSON: %v", err)

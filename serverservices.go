@@ -10,8 +10,28 @@ import (
 	"time"
 )
 
+// httpGetJSON performs an HTTP GET request and decodes the JSON response
+func httpGetJSON(url string, target any) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // fetchLandmarksFromFoursquare fetches landmarks using Foursquare API v2
-func fetchLandmarksFromFoursquare(cityName, country string) ([]Landmark, error) {
+func fetchLandmarksFromFoursquare(cityName, country string) ([]LandmarkEntity, error) {
 	// First, geocode the city to get coordinates
 	lat, lon, err := geocodeCity(cityName, country)
 	if err != nil {
@@ -40,28 +60,17 @@ func fetchLandmarksFromFoursquare(cityName, country string) ([]Landmark, error) 
 
 	fullURL := baseURL + "?" + params.Encode()
 
-	resp, err := http.Get(fullURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("foursquare API error: %d - %s", resp.StatusCode, string(body))
-	}
-
 	var fsResponse FoursquareV2Response
-	if err := json.NewDecoder(resp.Body).Decode(&fsResponse); err != nil {
-		return nil, err
+	if err := httpGetJSON(fullURL, &fsResponse); err != nil {
+		return nil, fmt.Errorf("foursquare API error: %w", err)
 	}
 
-	// Convert to our Landmark format
-	landmarks := make([]Landmark, 0)
+	// Convert to our LandmarkEntity format
+	landmarks := make([]LandmarkEntity, 0)
 	if len(fsResponse.Response.Groups) > 0 {
 		for _, item := range fsResponse.Response.Groups[0].Items {
 			venue := item.Venue
-			landmark := Landmark{
+			landmark := LandmarkEntity{
 				Name:      venue.Name,
 				Address:   venue.Location.Address,
 				Latitude:  venue.Location.Lat,
@@ -76,11 +85,11 @@ func fetchLandmarksFromFoursquare(cityName, country string) ([]Landmark, error) 
 }
 
 // fetchWeatherFromOpenMeteo fetches weather data from Open-Meteo API
-func fetchWeatherFromOpenMeteo(cityName string) (WeatherData, error) {
+func fetchWeatherFromOpenMeteo(cityName string) (WeatherEntity, error) {
 	// Geocode the city
 	lat, lon, err := geocodeCity(cityName, "")
 	if err != nil {
-		return WeatherData{}, fmt.Errorf("geocoding failed: %w", err)
+		return WeatherEntity{}, fmt.Errorf("geocoding failed: %w", err)
 	}
 
 	// Build Open-Meteo API request
@@ -93,26 +102,15 @@ func fetchWeatherFromOpenMeteo(cityName string) (WeatherData, error) {
 
 	fullURL := baseURL + "?" + params.Encode()
 
-	resp, err := http.Get(fullURL)
-	if err != nil {
-		return WeatherData{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return WeatherData{}, fmt.Errorf("open-meteo API error: %d - %s", resp.StatusCode, string(body))
-	}
-
 	var weatherResponse OpenMeteoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&weatherResponse); err != nil {
-		return WeatherData{}, err
+	if err := httpGetJSON(fullURL, &weatherResponse); err != nil {
+		return WeatherEntity{}, fmt.Errorf("open-meteo API error: %w", err)
 	}
 
 	// Convert to our format
-	hourly := make([]HourlyForecast, 0)
+	hourly := make([]HourlyForecastEntity, 0)
 	for i := range weatherResponse.Hourly.Time {
-		hourly = append(hourly, HourlyForecast{
+		hourly = append(hourly, HourlyForecastEntity{
 			Time:              weatherResponse.Hourly.Time[i],
 			Temperature:       weatherResponse.Hourly.Temperature[i],
 			WindSpeed:         weatherResponse.Hourly.WindSpeed[i],
@@ -120,7 +118,7 @@ func fetchWeatherFromOpenMeteo(cityName string) (WeatherData, error) {
 		})
 	}
 
-	return WeatherData{
+	return WeatherEntity{
 		Latitude:  lat,
 		Longitude: lon,
 		Hourly:    hourly,
@@ -128,27 +126,16 @@ func fetchWeatherFromOpenMeteo(cityName string) (WeatherData, error) {
 }
 
 // fetchRatesFromExchangeAPI fetches exchange rates
-func fetchRatesFromExchangeAPI(baseCurrency string) (RatesData, error) {
+func fetchRatesFromExchangeAPI(baseCurrency string) (RatesEntity, error) {
 	apiKey := "c04b66e4d1f1f147c60834b3" // Consider moving to env var
 	url := fmt.Sprintf("https://v6.exchangerate-api.com/v6/%s/latest/%s", apiKey, baseCurrency)
 
-	resp, err := http.Get(url)
-	if err != nil {
-		return RatesData{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return RatesData{}, fmt.Errorf("exchange-rate API error: %d - %s", resp.StatusCode, string(body))
-	}
-
 	var ratesResponse ExchangeRateResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ratesResponse); err != nil {
-		return RatesData{}, err
+	if err := httpGetJSON(url, &ratesResponse); err != nil {
+		return RatesEntity{}, fmt.Errorf("exchange-rate API error: %w", err)
 	}
 
-	return RatesData{
+	return RatesEntity{
 		BaseCurrency: ratesResponse.BaseCode,
 		Rates:        ratesResponse.ConversionRates,
 		Timestamp:    time.Unix(ratesResponse.TimeLastUpdateUnix, 0),
@@ -156,27 +143,16 @@ func fetchRatesFromExchangeAPI(baseCurrency string) (RatesData, error) {
 }
 
 // fetchCitiesFromRestCountries fetches list of countries/cities
-func fetchCitiesFromRestCountries() ([]City, error) {
+func fetchCitiesFromRestCountries() ([]CityEntity, error) {
 	url := "https://restcountries.com/v3.1/all?fields=name,cca3,capital,currencies"
 
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("rest-countries API error: %d - %s", resp.StatusCode, string(body))
+	var countries []RestCountryResponse
+	if err := httpGetJSON(url, &countries); err != nil {
+		return nil, fmt.Errorf("rest-countries API error: %w", err)
 	}
 
-	var countries []RestCountry
-	if err := json.NewDecoder(resp.Body).Decode(&countries); err != nil {
-		return nil, err
-	}
-
-	// Convert to our City format
-	cities := make([]City, 0)
+	// Convert to our CityEntity format
+	cities := make([]CityEntity, 0)
 	id := 1
 	for _, country := range countries {
 		if len(country.Capital) == 0 || country.Currencies == nil {
@@ -190,7 +166,7 @@ func fetchCitiesFromRestCountries() ([]City, error) {
 			break
 		}
 
-		city := City{
+		city := CityEntity{
 			ID:              id,
 			Name:            country.Capital[0],
 			ThreeLetterCode: country.CCA3,
@@ -230,7 +206,7 @@ func geocodeCity(cityName, country string) (float64, float64, error) {
 	}
 	defer resp.Body.Close()
 
-	var results []NominatimResult
+	var results []NominatimResponse
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
 		return 0, 0, err
 	}
