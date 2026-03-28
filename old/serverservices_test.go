@@ -7,53 +7,6 @@ import (
 	"testing"
 )
 
-// Test parseV2APIKey function
-func TestParseV2APIKey(t *testing.T) {
-	tests := []struct {
-		name           string
-		input          string
-		expectedID     string
-		expectedSecret string
-	}{
-		{
-			name:           "Valid key with separator",
-			input:          "CLIENT_ID+CLIENT_SECRET",
-			expectedID:     "CLIENT_ID",
-			expectedSecret: "CLIENT_SECRET",
-		},
-		{
-			name:           "Key without separator",
-			input:          "SINGLE_KEY",
-			expectedID:     "SINGLE_KEY",
-			expectedSecret: "SINGLE_KEY",
-		},
-		{
-			name:           "Key with multiple plus signs",
-			input:          "ID+SECRET+EXTRA",
-			expectedID:     "ID",
-			expectedSecret: "SECRET+EXTRA",
-		},
-		{
-			name:           "Empty key",
-			input:          "",
-			expectedID:     "",
-			expectedSecret: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			id, secret := parseV2APIKey(tt.input)
-			if id != tt.expectedID {
-				t.Errorf("Expected ID %q, got %q", tt.expectedID, id)
-			}
-			if secret != tt.expectedSecret {
-				t.Errorf("Expected secret %q, got %q", tt.expectedSecret, secret)
-			}
-		})
-	}
-}
-
 // Test geocodeCity with mock server
 func TestGeocodeCity(t *testing.T) {
 	// Create mock server

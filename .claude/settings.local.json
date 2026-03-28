@@ -9,7 +9,10 @@
       "Bash(lsof:*)",
       "Bash(xargs:*)",
       "WebFetch(domain:docs.foursquare.com)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(ls:*)"
     ]
   }
 }

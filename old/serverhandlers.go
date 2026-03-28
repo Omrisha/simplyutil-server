@@ -2,9 +2,25 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
+
+// getLandmarkProvider returns the appropriate landmark provider based on configuration
+func getLandmarkProvider() LandmarkProvider {
+	// Check if we should use Wikipedia (if LANDMARK_PROVIDER env var is set to "wikipedia")
+	// or if Foursquare API key is not available
+	provider := os.Getenv("LANDMARK_PROVIDER")
+	foursquareKey := os.Getenv("FOURSQUARE_API_KEY")
+
+	if provider == "wikipedia" || foursquareKey == "" {
+		return NewWikipediaLandmarkProvider()
+	}
+
+	// Default to Foursquare, but fall back to Wikipedia on error
+	return NewFoursquareLandmarkProvider()
+}
 
 // GetCities returns a list of all cities/countries with currencies
 func GetCities(c *gin.Context) {
@@ -29,13 +45,16 @@ func GetCityData(c *gin.Context) {
 	cityName := c.Param("name")
 	country := c.Param("country")
 
+	// Get the configured landmark provider
+	landmarkProvider := getLandmarkProvider()
+
 	// Fetch all data concurrently
 	landmarksCh := make(chan landmarksResult)
 	weatherCh := make(chan weatherResult)
 	ratesCh := make(chan ratesResult)
 
 	go func() {
-		landmarks, err := fetchLandmarksFromFoursquare(cityName, country)
+		landmarks, err := landmarkProvider.FetchLandmarks(cityName, country)
 		landmarksCh <- landmarksResult{landmarks: landmarks, err: err}
 	}()
 
@@ -92,7 +111,10 @@ func GetLandmarks(c *gin.Context) {
 		return
 	}
 
-	landmarks, err := fetchLandmarksFromFoursquare(cityName, country)
+	// Get the configured landmark provider
+	landmarkProvider := getLandmarkProvider()
+
+	landmarks, err := landmarkProvider.FetchLandmarks(cityName, country)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to fetch landmarks",

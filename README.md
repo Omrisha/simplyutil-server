@@ -190,15 +190,7 @@ Get all data for a city in one request (landmarks + weather + rates).
 
 ## Project Structure
 
-```
-server/
-├── main.go          # Entry point, router setup
-├── handlers.go      # HTTP request handlers
-├── services.go      # External API integrations
-├── models.go        # Data structures
-├── go.mod           # Go dependencies
-└── README.md        # This file
-```
+This project follows clean architecture principles with clear separation of concerns. For detailed information about the architecture, design patterns, and project organization, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Adding Caching (Optional)
 

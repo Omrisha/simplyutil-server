@@ -18,6 +18,8 @@ type LandmarkEntity struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 	Rating    float64 `json:"rating"`
+	ImageURL  string  `json:"imageUrl,omitempty"`
+	Category  string  `json:"category,omitempty"`
 }
 
 // WeatherEntity represents weather forecast
@@ -43,15 +45,26 @@ type RatesEntity struct {
 
 // External API response types
 
-// FoursquareV3Response for Foursquare Places API v3
+// FoursquareV3Response for Foursquare Places API (new structure)
 type FoursquareV3Response struct {
 	Results []struct {
-		Name     string `json:"name"`
-		Location struct {
-			Latitude  float64 `json:"latitude"`
-			Longitude float64 `json:"longitude"`
-			Address   string  `json:"address"`
+		FsqPlaceID string  `json:"fsq_place_id"`
+		Name       string  `json:"name"`
+		Latitude   float64 `json:"latitude"`
+		Longitude  float64 `json:"longitude"`
+		Location   struct {
+			Address          string `json:"address"`
+			FormattedAddress string `json:"formatted_address"`
 		} `json:"location"`
+		Categories []struct {
+			Name string `json:"name"`
+		} `json:"categories"`
+		Photos []struct {
+			Prefix string `json:"prefix"`
+			Suffix string `json:"suffix"`
+			Width  int    `json:"width"`
+			Height int    `json:"height"`
+		} `json:"photos"`
 		Rating float64 `json:"rating"`
 	} `json:"results"`
 }
@@ -114,4 +127,37 @@ type RestCountryResponse struct {
 type NominatimResponse struct {
 	Lat float64 `json:"lat,string"`
 	Lon float64 `json:"lon,string"`
+}
+
+// WikipediaGeoSearchResponse for Wikipedia geosearch API
+type WikipediaGeoSearchResponse struct {
+	Query struct {
+		GeoSearch []struct {
+			PageID int     `json:"pageid"`
+			Title  string  `json:"title"`
+			Lat    float64 `json:"lat"`
+			Lon    float64 `json:"lon"`
+			Dist   float64 `json:"dist"`
+		} `json:"geosearch"`
+	} `json:"query"`
+}
+
+// WikipediaPageResponse for Wikipedia page details API
+type WikipediaPageResponse struct {
+	Query struct {
+		Pages map[string]struct {
+			PageID    int    `json:"pageid"`
+			Title     string `json:"title"`
+			Thumbnail struct {
+				Source string `json:"source"`
+				Width  int    `json:"width"`
+				Height int    `json:"height"`
+			} `json:"thumbnail"`
+			Coordinates []struct {
+				Lat float64 `json:"lat"`
+				Lon float64 `json:"lon"`
+			} `json:"coordinates"`
+			Extract string `json:"extract"`
+		} `json:"pages"`
+	} `json:"query"`
 }
