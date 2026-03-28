@@ -60,6 +60,35 @@ curl http://localhost:8080/api/v1/rates/USD
 curl http://localhost:8080/api/v1/cities/London/England
 ```
 
+## Running Tests
+
+Run all unit tests:
+```bash
+go test ./...
+```
+
+Run tests with verbose output:
+```bash
+go test -v ./...
+```
+
+Run tests with coverage:
+```bash
+go test -cover ./...
+```
+
+Run only fast tests (skip integration tests):
+```bash
+go test -short ./...
+```
+
+Run specific package tests:
+```bash
+go test ./model
+go test ./service
+go test ./handler
+```
+
 ## API Documentation
 
 ### GET /health
@@ -164,29 +193,55 @@ Get all data for a city in one request (landmarks + weather + rates).
 
 ## Deployment
 
+### Pre-Deployment Checklist
+
+Before deploying to any platform, always:
+
+```bash
+# Run tests
+go test ./...
+
+# Build to verify compilation
+go build -o simplyutil-server .
+
+# Test the binary
+./simplyutil-server &
+curl http://localhost:8080/health
+pkill simplyutil-server
+```
+
 ### Deploy to Railway
 
-1. Install Railway CLI: `npm install -g @railway/cli`
-2. Login: `railway login`
-3. Initialize: `railway init`
-4. Deploy: `railway up`
-5. Set env vars: `railway variables set FOURSQUARE_API_KEY=xxx`
+1. **Run tests**: `go test ./...`
+2. Install Railway CLI: `npm install -g @railway/cli`
+3. Login: `railway login`
+4. Initialize: `railway init`
+5. Deploy: `railway up`
+6. Set env vars: `railway variables set FOURSQUARE_API_KEY=xxx`
 
 ### Deploy to Render
 
-1. Connect your GitHub repo
-2. Create new Web Service
-3. Build command: `go build -o server`
-4. Start command: `./server`
-5. Add environment variables in dashboard
+1. **Run tests**: `go test ./...`
+2. Connect your GitHub repo
+3. Create new Web Service
+4. Build command: `go test ./... && go build -o server`
+5. Start command: `./server`
+6. Add environment variables in dashboard
 
 ### Deploy to Fly.io
 
-1. Install flyctl: `curl -L https://fly.io/install.sh | sh`
-2. Login: `fly auth login`
-3. Launch: `fly launch`
-4. Deploy: `fly deploy`
-5. Set secrets: `fly secrets set FOURSQUARE_API_KEY=xxx`
+1. **Run tests**: `go test ./...`
+2. Install flyctl: `curl -L https://fly.io/install.sh | sh`
+3. Login: `fly auth login`
+4. Launch: `fly launch`
+5. Deploy: `fly deploy`
+6. Set secrets: `fly secrets set FOURSQUARE_API_KEY=xxx`
+
+**Note**: Fly.io automatically runs tests during deployment if you add this to your Dockerfile:
+```dockerfile
+# Add before building
+RUN go test ./...
+```
 
 ## Project Structure
 
