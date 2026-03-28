@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go version:*)",
+      "Bash(go clean:*)",
+      "Bash(go mod download:*)",
+      "Bash(go build:*)",
+      "Bash(go get:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs:*)",
+      "WebFetch(domain:docs.foursquare.com)",
+      "Bash(go test:*)"
+    ]
+  }
+}
