@@ -44,7 +44,7 @@ func (h *Handler) GetCities(c *gin.Context) {
 		if pageSize < 1 || pageSize > 1000 {
 			pageSize = 100
 		}
-		Í
+
 		cities, err := h.citiesService.GetCitiesWithQuery(provider.GeoNamesQuery{
 			Page:        page,
 			PageSize:    pageSize,
