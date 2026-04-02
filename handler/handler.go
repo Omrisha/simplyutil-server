@@ -3,7 +3,9 @@ package handler
 import (
 	"net/http"
 	"simplyutil-server/model"
+	"simplyutil-server/provider"
 	"simplyutil-server/service"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,8 +28,45 @@ func NewHandler() *Handler {
 	}
 }
 
-// GetCities returns a list of all cities/countries with currencies
+// GetCities returns cities. When using GeoNames, supports ?page, ?pageSize, ?search, ?country.
 func (h *Handler) GetCities(c *gin.Context) {
+	_, hasPage := c.GetQuery("page")
+	_, hasPageSize := c.GetQuery("pageSize")
+	search := c.Query("search")
+	country := c.Query("country")
+
+	if h.citiesService.IsGeoNames() && (hasPage || hasPageSize || search != "" || country != "") {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "100"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 1000 {
+			pageSize = 100
+		}
+		Í
+		cities, err := h.citiesService.GetCitiesWithQuery(provider.GeoNamesQuery{
+			Page:        page,
+			PageSize:    pageSize,
+			Search:      search,
+			CountryCode: country,
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to fetch cities",
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"cities":   cities,
+			"count":    len(cities),
+			"page":     page,
+			"pageSize": pageSize,
+		})
+		return
+	}
+
 	cities, err := h.citiesService.GetCities()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -36,7 +75,6 @@ func (h *Handler) GetCities(c *gin.Context) {
 		})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"cities": cities,
 		"count":  len(cities),

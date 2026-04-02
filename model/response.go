@@ -50,12 +50,27 @@ type RestCountryResponse struct {
 		Common   string `json:"common"`
 		Official string `json:"official"`
 	} `json:"name"`
+	CCA2       string   `json:"cca2"`
 	CCA3       string   `json:"cca3"`
 	Capital    []string `json:"capital"`
 	Currencies map[string]struct {
 		Name   string `json:"name"`
 		Symbol string `json:"symbol"`
 	} `json:"currencies"`
+}
+
+// GeoNamesPlace represents a single place from GeoNames API
+type GeoNamesPlace struct {
+	Name        string `json:"name"`
+	CountryCode string `json:"countryCode"`
+	CountryName string `json:"countryName"`
+	Population  int    `json:"population"`
+}
+
+// GeoNamesResponse for GeoNames search API
+type GeoNamesResponse struct {
+	TotalResultsCount int             `json:"totalResultsCount"`
+	GeoNames          []GeoNamesPlace `json:"geonames"`
 }
 
 // NominatimResponse for geocoding
