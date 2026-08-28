@@ -32,7 +32,7 @@ func main() {
 	// CORS configuration
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // In production, specify your iOS app
-		AllowMethods:     []string{"GET", "POST"},
+		AllowMethods:     []string{"GET", "POST", "QUERY"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -52,11 +52,14 @@ func main() {
 	{
 		// Cities endpoints
 		api.GET("/cities", h.GetCities)
+		api.Handle("QUERY", "/cities", h.QueryCities)
 		api.GET("/cities/:name/:country", h.GetCityData)
 
 		// Individual data endpoints
 		api.GET("/landmarks", h.GetLandmarks)
+		api.Handle("QUERY", "/landmarks", h.QueryLandmarks)
 		api.GET("/weather", h.GetWeather)
+		api.Handle("QUERY", "/weather", h.QueryWeather)
 		api.GET("/rates/:currency", h.GetRates)
 	}
 

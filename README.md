@@ -4,30 +4,41 @@ A unified backend server that consolidates all API calls for the SimplyUtil iOS 
 
 ## Features
 
-- 🌍 **Cities API**: List of countries with currencies
-- 🏛️ **Landmarks API**: Tourist attractions from Foursquare
+- 🌍 **Cities API**: Cities with country and currency info, from GeoNames or REST Countries
+- 🏛️ **Landmarks API**: Tourist attractions from Wikipedia (default) or Foursquare
 - ☁️ **Weather API**: Forecasts from Open-Meteo
 - 💱 **Exchange Rates API**: Real-time currency rates
 - ⚡ **Concurrent Fetching**: Parallel API calls for better performance
 - 🔒 **Secure**: API keys hidden server-side
-- 🚀 **Fast**: Deployed on Railway/Render/Fly.io
+- 🚀 **Deployed on Fly.io**: See [.github/workflows/fly-deploy.yml](.github/workflows/fly-deploy.yml)
 
 ## Setup
 
 ### 1. Install Dependencies
 
 ```bash
-cd server
 go mod download
 ```
 
 ### 2. Set Environment Variables
 
-Create a `.env` file:
+Create a `.env` file. Every variable is optional; the defaults are shown below.
 
 ```bash
+# Port to listen on (default: 8080)
 PORT=8080
-FOURSQUARE_API_KEY=YOUR_CLIENT_ID+YOUR_CLIENT_SECRET
+
+# Landmarks. Wikipedia is used when LANDMARK_PROVIDER=wikipedia or when
+# FOURSQUARE_API_KEY is unset, so no key is needed to get started.
+LANDMARK_PROVIDER=wikipedia
+FOURSQUARE_API_KEY=YOUR_FOURSQUARE_SERVICE_KEY
+
+# Cities. Without a GeoNames username the server falls back to REST Countries,
+# which returns capital cities only and supports no search or pagination.
+GEONAMES_USERNAME=YOUR_GEONAMES_USERNAME
+
+# Exchange rates
+EXCHANGE_RATE_API_KEY=YOUR_EXCHANGERATE_API_KEY
 ```
 
 ### 3. Run Locally
@@ -47,8 +58,21 @@ curl http://localhost:8080/health
 # Get all cities
 curl http://localhost:8080/api/v1/cities
 
+# Search cities (requires GEONAMES_USERNAME)
+curl "http://localhost:8080/api/v1/cities?search=lon&country=GB&page=1&pageSize=20"
+
+# Same, using the QUERY method with a JSON body
+curl -X QUERY http://localhost:8080/api/v1/cities \
+  -H "Content-Type: application/json" \
+  -d '{"search": "lon", "country": "GB", "page": 1, "pageSize": 20}'
+
 # Get landmarks
 curl "http://localhost:8080/api/v1/landmarks?city=London&country=England"
+
+# Same, using the QUERY method with a JSON body
+curl -X QUERY http://localhost:8080/api/v1/landmarks \
+  -H "Content-Type: application/json" \
+  -d '{"city": "London", "country": "England"}'
 
 # Get weather
 curl "http://localhost:8080/api/v1/weather?city=London"
@@ -77,16 +101,16 @@ Run tests with coverage:
 go test -cover ./...
 ```
 
-Run only fast tests (skip integration tests):
-```bash
-go test -short ./...
-```
+Integration tests that call live APIs skip themselves unconditionally, so
+`go test ./...` never touches the network. Remove the `t.Skip` in the relevant
+test to run one against the real API.
 
 Run specific package tests:
 ```bash
+go test ./handler
 go test ./model
 go test ./service
-go test ./handler
+go test ./util
 ```
 
 ## API Documentation
@@ -102,8 +126,25 @@ Health check endpoint.
 }
 ```
 
-### GET /api/v1/cities
-Get list of all cities with currencies.
+### GET /api/v1/cities &nbsp;·&nbsp; QUERY /api/v1/cities
+Get cities with country and currency info. With GeoNames this returns cities with a
+population of at least 50,000; without it, REST Countries capital cities. With the QUERY method, filters are sent as a JSON body instead of query parameters:
+```json
+{
+  "search": "lon",
+  "country": "GB",
+  "page": 1,
+  "pageSize": 100
+}
+```
+
+Filtering and pagination require the GeoNames provider. Without `GEONAMES_USERNAME`
+set, a request carrying any of `search`, `country`, `page`, or `pageSize` returns
+`501 Not Implemented` rather than silently returning the unfiltered list. `page`
+defaults to 1 and `pageSize` to 100 (maximum 1000); values outside those bounds
+fall back to the defaults.
+
+QUERY request bodies are capped at 1 MiB; a larger body returns `413 Request Entity Too Large`.
 
 **Response:**
 ```json
@@ -121,10 +162,22 @@ Get list of all cities with currencies.
 }
 ```
 
-### GET /api/v1/landmarks?city={name}&country={name}
-Get landmarks for a city.
+Filtered requests echo the pagination back:
+```json
+{
+  "cities": [...],
+  "count": 20,
+  "page": 1,
+  "pageSize": 20
+}
+```
 
-**Response:**
+### GET /api/v1/landmarks?city={name}&country={name} &nbsp;·&nbsp; QUERY /api/v1/landmarks
+Get landmarks for a city. With the QUERY method, send `{"city": "London", "country": "England"}` as a JSON body.
+`city` is required; `country` is optional and only helps disambiguate geocoding.
+
+**Response:** `rating` is always 0 and `category` always `"Landmark"` when the
+Wikipedia provider is active. `imageUrl` and `category` are omitted when empty.
 ```json
 {
   "landmarks": [
@@ -133,15 +186,17 @@ Get landmarks for a city.
       "address": "Tower Bridge Rd",
       "latitude": 51.5055,
       "longitude": -0.0754,
-      "rating": 9.5
+      "rating": 9.5,
+      "imageUrl": "https://.../tower-bridge.jpg",
+      "category": "Monument"
     }
   ],
   "count": 20
 }
 ```
 
-### GET /api/v1/weather?city={name}
-Get weather forecast for a city.
+### GET /api/v1/weather?city={name} &nbsp;·&nbsp; QUERY /api/v1/weather
+Get weather forecast for a city (next 24 hours, hourly). With the QUERY method, send `{"city": "London"}` as a JSON body.
 
 **Response:**
 ```json
@@ -178,7 +233,11 @@ Get exchange rates for a base currency.
 ```
 
 ### GET /api/v1/cities/{city}/{country}
-Get all data for a city in one request (landmarks + weather + rates).
+Get all data for a city in one request (landmarks + weather + rates), fetched
+concurrently. Rates are always USD-based, regardless of the city's own currency.
+
+Partial failures still return `200`: any section that failed is replaced by a
+`<section>_error` key rather than failing the whole request.
 
 **Response:**
 ```json
@@ -187,9 +246,11 @@ Get all data for a city in one request (landmarks + weather + rates).
   "country": "England",
   "landmarks": [...],
   "weather": {...},
-  "rates": {...}
+  "rates_error": "exchange-rate API error: ..."
 }
 ```
+
+**Note:** the QUERY method is not available on this endpoint or on `/api/v1/rates/{currency}`.
 
 ## Deployment
 
@@ -237,11 +298,9 @@ pkill simplyutil-server
 5. Deploy: `fly deploy`
 6. Set secrets: `fly secrets set FOURSQUARE_API_KEY=xxx`
 
-**Note**: Fly.io automatically runs tests during deployment if you add this to your Dockerfile:
-```dockerfile
-# Add before building
-RUN go test ./...
-```
+**Note**: the [Dockerfile](Dockerfile) already runs `go test ./...` before building,
+so a failing test fails the deploy. Pushes to `main` deploy automatically via
+[.github/workflows/fly-deploy.yml](.github/workflows/fly-deploy.yml).
 
 ## Project Structure
 
@@ -255,7 +314,7 @@ To add Redis caching:
 // Add to go.mod
 require github.com/go-redis/redis/v8 v8.11.5
 
-// In services.go
+// In service/landmark_service.go
 var rdb = redis.NewClient(&redis.Options{
     Addr: "localhost:6379",
 })
@@ -280,7 +339,7 @@ func fetchLandmarksWithCache(city string) {
 ## Performance Tips
 
 1. **Enable caching**: Add Redis for frequently accessed data
-2. **Rate limiting**: Use `gin-contrib/rate` package
+2. **Rate limiting**: Add a limiter such as `github.com/ulule/limiter/v3` or `github.com/didip/tollbooth`
 3. **Connection pooling**: Configure http.Client properly
 4. **Gzip compression**: Add middleware for response compression
 5. **Monitoring**: Use Prometheus + Grafana
