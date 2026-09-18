@@ -4,7 +4,7 @@ A unified backend server that consolidates all API calls for the SimplyUtil iOS 
 
 ## Features
 
-- 🌍 **Cities API**: Cities with country and currency info, from GeoNames or REST Countries
+- 🌍 **Cities API**: Cities with country and currency info, from GeoNames
 - 🏛️ **Landmarks API**: Tourist attractions from Wikipedia (default) or Foursquare
 - ☁️ **Weather API**: Forecasts from Open-Meteo
 - 💱 **Exchange Rates API**: Real-time currency rates
@@ -33,8 +33,9 @@ PORT=8080
 LANDMARK_PROVIDER=wikipedia
 FOURSQUARE_API_KEY=YOUR_FOURSQUARE_SERVICE_KEY
 
-# Cities. Without a GeoNames username the server falls back to REST Countries,
-# which returns capital cities only and supports no search or pagination.
+# Cities. Required in practice: GeoNames supplies both the city list and the
+# country metadata (ISO alpha-3 code and currency). The REST Countries fallback
+# used when this is unset no longer works - see the note below.
 GEONAMES_USERNAME=YOUR_GEONAMES_USERNAME
 
 # Exchange rates
@@ -127,8 +128,15 @@ Health check endpoint.
 ```
 
 ### GET /api/v1/cities &nbsp;·&nbsp; QUERY /api/v1/cities
-Get cities with country and currency info. With GeoNames this returns cities with a
-population of at least 50,000; without it, REST Countries capital cities. With the QUERY method, filters are sent as a JSON body instead of query parameters:
+Get cities with country and currency info: cities with a population of at least
+50,000, enriched with each country's ISO alpha-3 code and currency. Both come
+from GeoNames, so `GEONAMES_USERNAME` must be set.
+
+> **REST Countries v3.1 was retired.** It answers HTTP 200 with a deprecation
+> object where the country array used to be, so the old fallback path (used when
+> `GEONAMES_USERNAME` is unset) now returns a 500 explaining this. Country
+> metadata is sourced from the GeoNames `countryInfo` endpoint instead, cached
+> for 24 hours. Migrating the fallback to REST Countries v5 needs an API key. With the QUERY method, filters are sent as a JSON body instead of query parameters:
 ```json
 {
   "search": "lon",

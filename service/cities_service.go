@@ -6,12 +6,22 @@ import (
 	"simplyutil-server/interfaces"
 	"simplyutil-server/model"
 	"simplyutil-server/provider"
+	"sync"
+	"time"
 )
+
+// countryLookupTTL is how long the country metadata is reused. The data changes
+// on the order of years, and refetching it per request burns GeoNames credits.
+const countryLookupTTL = 24 * time.Hour
 
 // CitiesService handles cities/countries data operations
 type CitiesService struct {
 	provider         interfaces.CityProvider
 	geoNamesProvider *provider.GeoNamesProvider
+
+	mu            sync.Mutex
+	countryLookup map[string]provider.CountryLookup
+	lookupFetched time.Time
 }
 
 // NewCitiesService creates a new cities service with the appropriate provider
@@ -39,12 +49,37 @@ func (s *CitiesService) GetCitiesWithQuery(q provider.GeoNamesQuery) ([]model.Ci
 	return s.enrichGeoNames(s.geoNamesProvider.FetchCitiesWithQuery(q))
 }
 
+// getCountryLookup returns country metadata, refetching only once the cached
+// copy has gone stale.
+func (s *CitiesService) getCountryLookup() (map[string]provider.CountryLookup, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.countryLookup != nil && time.Since(s.lookupFetched) < countryLookupTTL {
+		return s.countryLookup, nil
+	}
+
+	lookup, err := s.geoNamesProvider.FetchCountryLookup()
+	if err != nil {
+		// Serve stale data rather than failing outright: an expired cache is a
+		// far better answer than a 500 when GeoNames is briefly unavailable.
+		if s.countryLookup != nil {
+			return s.countryLookup, nil
+		}
+		return nil, err
+	}
+
+	s.countryLookup = lookup
+	s.lookupFetched = time.Now()
+	return lookup, nil
+}
+
 func (s *CitiesService) enrichGeoNames(places []model.GeoNamesPlace, err error) ([]model.CityEntity, error) {
 	if err != nil {
 		return nil, err
 	}
 
-	countryLookup, err := provider.NewRestCountriesProvider().FetchCountryLookup()
+	countryLookup, err := s.getCountryLookup()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch country lookup: %w", err)
 	}

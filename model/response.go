@@ -67,10 +67,35 @@ type GeoNamesPlace struct {
 	Population  int    `json:"population"`
 }
 
+// GeoNamesStatus is the error envelope GeoNames returns alongside HTTP 200 -
+// for an exhausted credit quota or an invalid username, for example.
+type GeoNamesStatus struct {
+	Message string `json:"message"`
+	Value   int    `json:"value"`
+}
+
 // GeoNamesResponse for GeoNames search API
 type GeoNamesResponse struct {
 	TotalResultsCount int             `json:"totalResultsCount"`
 	GeoNames          []GeoNamesPlace `json:"geonames"`
+	Status            *GeoNamesStatus `json:"status"`
+}
+
+// GeoNamesCountryInfo is one country from the GeoNames countryInfo API. It
+// supplies the ISO alpha-3 code and currency that the cities endpoints used to
+// source from REST Countries.
+type GeoNamesCountryInfo struct {
+	CountryCode  string `json:"countryCode"`
+	CountryName  string `json:"countryName"`
+	IsoAlpha3    string `json:"isoAlpha3"`
+	CurrencyCode string `json:"currencyCode"`
+	Capital      string `json:"capital"`
+}
+
+// GeoNamesCountryInfoResponse for the GeoNames countryInfo API
+type GeoNamesCountryInfoResponse struct {
+	GeoNames []GeoNamesCountryInfo `json:"geonames"`
+	Status   *GeoNamesStatus       `json:"status"`
 }
 
 // NominatimResponse for geocoding

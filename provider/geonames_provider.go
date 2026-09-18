@@ -7,6 +7,9 @@ import (
 	"simplyutil-server/util"
 )
 
+// geoNamesBaseURL is the root of the GeoNames JSON API.
+const geoNamesBaseURL = "http://api.geonames.org"
+
 // GeoNamesProvider implements city fetching using the GeoNames API
 type GeoNamesProvider struct {
 	username string
@@ -55,12 +58,58 @@ func (p *GeoNamesProvider) FetchCitiesWithQuery(q GeoNamesQuery) ([]model.GeoNam
 		params.Set("country", q.CountryCode)
 	}
 
-	apiURL := "http://api.geonames.org/searchJSON?" + params.Encode()
+	apiURL := geoNamesBaseURL + "/searchJSON?" + params.Encode()
 
 	var response model.GeoNamesResponse
 	if err := util.HTTPGetJSON(apiURL, &response); err != nil {
 		return nil, fmt.Errorf("geonames API error: %w", err)
 	}
+	if err := statusError(response.Status); err != nil {
+		return nil, err
+	}
 
 	return response.GeoNames, nil
+}
+
+// FetchCountryLookup returns country metadata keyed by 2-letter ISO code.
+// GeoNames is the source here because REST Countries retired the free v3.1 API.
+func (p *GeoNamesProvider) FetchCountryLookup() (map[string]CountryLookup, error) {
+	if p.username == "" {
+		return nil, fmt.Errorf("GEONAMES_USERNAME not set")
+	}
+
+	params := url.Values{}
+	params.Set("username", p.username)
+
+	var response model.GeoNamesCountryInfoResponse
+	if err := util.HTTPGetJSON(geoNamesBaseURL+"/countryInfoJSON?"+params.Encode(), &response); err != nil {
+		return nil, fmt.Errorf("geonames countryInfo error: %w", err)
+	}
+	if err := statusError(response.Status); err != nil {
+		return nil, err
+	}
+
+	lookup := make(map[string]CountryLookup, len(response.GeoNames))
+	for _, country := range response.GeoNames {
+		if country.CountryCode == "" {
+			continue
+		}
+		lookup[country.CountryCode] = CountryLookup{
+			CCA3:     country.IsoAlpha3,
+			Currency: country.CurrencyCode,
+		}
+	}
+	if len(lookup) == 0 {
+		return nil, fmt.Errorf("geonames countryInfo returned no countries")
+	}
+	return lookup, nil
+}
+
+// statusError converts the error envelope GeoNames returns with HTTP 200 into a
+// real error. Without this an exhausted quota looks like an empty result set.
+func statusError(status *model.GeoNamesStatus) error {
+	if status == nil {
+		return nil
+	}
+	return fmt.Errorf("geonames API error %d: %s", status.Value, status.Message)
 }

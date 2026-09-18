@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
 	"simplyutil-server/model"
 	"simplyutil-server/util"
@@ -50,36 +51,33 @@ func (p *RestCountriesProvider) FetchCities() ([]model.CityEntity, error) {
 	return cities, nil
 }
 
-// FetchCountryLookup returns a map from 2-letter ISO code to country metadata
-func (p *RestCountriesProvider) FetchCountryLookup() (map[string]CountryLookup, error) {
-	countries, err := p.fetchCountries()
-	if err != nil {
-		return nil, err
-	}
-
-	lookup := make(map[string]CountryLookup, len(countries))
-	for _, country := range countries {
-		if country.CCA2 == "" || country.Currencies == nil {
-			continue
-		}
-		var currencyCode string
-		for code := range country.Currencies {
-			currencyCode = code
-			break
-		}
-		lookup[country.CCA2] = CountryLookup{
-			CCA3:     country.CCA3,
-			Currency: currencyCode,
-		}
-	}
-	return lookup, nil
+// restCountriesErrorEnvelope is what the retired v3.1 API answers with now: an
+// object carrying a deprecation message, served with HTTP 200.
+type restCountriesErrorEnvelope struct {
+	Success bool `json:"success"`
+	Errors  []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
 }
 
 func (p *RestCountriesProvider) fetchCountries() ([]model.RestCountryResponse, error) {
 	url := "https://restcountries.com/v3.1/all?fields=name,cca2,cca3,capital,currencies"
-	var countries []model.RestCountryResponse
-	if err := util.HTTPGetJSON(url, &countries); err != nil {
+
+	var raw json.RawMessage
+	if err := util.HTTPGetJSON(url, &raw); err != nil {
 		return nil, fmt.Errorf("rest-countries API error: %w", err)
 	}
-	return countries, nil
+
+	var countries []model.RestCountryResponse
+	if err := json.Unmarshal(raw, &countries); err == nil {
+		return countries, nil
+	}
+
+	// The array we expected is gone. Report why rather than letting an opaque
+	// "cannot unmarshal object into []RestCountryResponse" reach the client.
+	var envelope restCountriesErrorEnvelope
+	if json.Unmarshal(raw, &envelope) == nil && len(envelope.Errors) > 0 {
+		return nil, fmt.Errorf("rest-countries API is no longer available: %s (set GEONAMES_USERNAME to use GeoNames instead)", envelope.Errors[0].Message)
+	}
+	return nil, fmt.Errorf("rest-countries API returned an unexpected response shape (set GEONAMES_USERNAME to use GeoNames instead)")
 }

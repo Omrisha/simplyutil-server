@@ -24,9 +24,9 @@ type LandmarkEntity struct {
 
 // WeatherEntity represents weather forecast
 type WeatherEntity struct {
-	Latitude  float64                 `json:"latitude"`
-	Longitude float64                 `json:"longitude"`
-	Hourly    []HourlyForecastEntity  `json:"hourly"`
+	Latitude  float64                `json:"latitude"`
+	Longitude float64                `json:"longitude"`
+	Hourly    []HourlyForecastEntity `json:"hourly"`
 }
 
 // HourlyForecastEntity represents hourly weather data
